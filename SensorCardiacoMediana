@@ -1,0 +1,104 @@
+/* 
+ *  PROYECTO BIMESTRE 1
+ *  SISTEMAS EMBEBIDOS
+ *  EQUIPO N° 4
+ *  Integrantes: Achina Diego, Grijalva Ana, Tobar Anahí
+*/
+#define tam_sig 120 
+#define tam_fil 15
+
+extern double Sensor[tam_sig];                 
+extern double Fir[tam_fil];                                
+double salida[tam_sig+tam_fil];               
+double mediana_sen[tam_sig];                  
+void setup() {
+  Serial.begin(9600);                               
+}
+void loop() {
+  convolucion((double *)&Sensor[0], (double *)&salida[0], (double *)&Fir[0], (int) tam_sig, (int) tam_fil);  
+  mediana ((double *)&Sensor[0], (double *)&mediana_sen[0], (int) tam_sig);                                  
+  graficacion();                                                                                             
+  SNR();                                                                                                     
+  delay(100);                                                                                                
+  
+}
+
+//Convolución filtro fir
+void convolucion(double x_n[],double y_n[], double h_n[], int x_tam, int h_tam){
+  int i,j;
+
+  for(i=0;i<(x_tam+h_tam);i++){      
+    y_n[i]=0;                              
+  }
+  for(i=0;i<x_tam;i++){              
+    for(j=0;j<h_tam;j++){                 
+      y_n[i+j]+=x_n[i]*h_n[j];   
+    }
+  }
+}
+
+//Algoritmo para suavizar (mediana)
+void mediana (double sig_in[], double mediana_sen[], int sig_tam){
+  int i,j,k;
+  float vector[5], sig_Temp;
+  for(k=0;k<sig_tam;k++){   
+    vector[0]=sig_in[k+0];  
+    vector[1]=sig_in[k+1];  
+    vector[2]=sig_in[k+2];  
+    vector[3]=sig_in[k+3]; 
+    vector[4]=sig_in[k+4];  
+    for(i=0;i<(4);i++){     
+      for(j=i+1;j<5;j++){
+        if(vector[j]<vector[i]){
+          //Intercambio de valores
+          sig_Temp=vector[j];   
+          vector[j]=vector[i];
+          vector[i]=sig_Temp;  
+        }
+      }
+    }
+    mediana_sen[k]=vector[1];
+  }
+}
+
+//Métrica señal a ruido
+void SNR(){                                  
+  //Media de la señal de pulsos
+  float suma=0;
+  for(int i=0;i<tam_sig;i++){                             
+      suma += Sensor[i];                             
+  }
+  float promedio=suma/tam_sig;                        
+  float v1=map(promedio,0,1023,0,5);
+  Serial.println(String("Voltaje: ")+String(v1)); 
+
+  //Media de la señal filtrada por mediana
+  float suma2=0;
+  for(int i=0;i<tam_sig;i++){
+    suma2 += mediana_sen[i];
+  }
+  float promedio2=suma2/tam_sig;                                        
+  float v2=map(promedio2,0,1023,0,5);
+    
+  Serial.println(String("Voltaje Filtrado: ")+String(v2)); 
+
+//Métrica señal a ruido en voltajes
+
+    double metricaSNR=20*log(v2/v1);                                        
+    Serial.println(String("SNR (dB): ")+String(metricaSNR));
+    //Serial.print("");
+    
+}
+
+//Graficar
+void graficacion(){ 
+  int i;
+  for(i=0;i<tam_sig;i++){
+    Serial.print(String("Señar recibida: ")+String(Sensor[i]));
+    Serial.print(",");
+    Serial.print(String("Friltro : ")+String(mediana_sen[i]));
+    Serial.print(",");
+    Serial.println(String("Suavizado con mediana: ")+String(salida[i]));
+    delay(20);
+  }
+}
