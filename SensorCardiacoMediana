@@ -4,101 +4,97 @@
  *  EQUIPO N° 4
  *  Integrantes: Achina Diego, Grijalva Ana, Tobar Anahí
 */
-#define tam_sig 120 
-#define tam_fil 15
+#define tam_sig 120 //Definir tamaño de los vectores que se importan
+#define tam_fil 15  //Definir tamaño de los vectores que se importan
 
-extern double Sensor[tam_sig];                 
-extern double Fir[tam_fil];                                
-double salida[tam_sig+tam_fil];               
-double mediana_sen[tam_sig];                  
+extern double Sensor[tam_sig];   //Importar el vector de la pestaña              
+extern double Fir[tam_fil];      //Definir tamaño de los vectores que se importan                          
+double salida[tam_sig+tam_fil];  //Definir un vector para la salida            
+double mediana_sen[tam_sig];     //Definir un vector para aplicar el algortimo              
 void setup() {
-  Serial.begin(9600);                               
+  Serial.begin(9600);            //Inicializar comunicación serial                            
 }
 void loop() {
-  convolucion((double *)&Sensor[0], (double *)&salida[0], (double *)&Fir[0], (int) tam_sig, (int) tam_fil);  
-  mediana ((double *)&Sensor[0], (double *)&mediana_sen[0], (int) tam_sig);                                  
-  graficacion();                                                                                             
-  SNR();                                                                                                     
-  delay(100);                                                                                                
+  convolucion((double *)&Sensor[0], (double *)&salida[0], (double *)&Fir[0], (int) tam_sig, (int) tam_fil); //función para convolución 
+  mediana ((double *)&Sensor[0], (double *)&mediana_sen[0], (int) tam_sig);                                 //calcular mediana                                 
+  representar();                                                                                            // Llamar método para representar 
+  SNR();                                                                                                    // Llamar método para calcular relacción señal a ruido                                                                                            
+  delay(150);                                                                                               // Detener el microcontrolador 100 ms 
   
 }
 
 //Convolución filtro fir
-void convolucion(double x_n[],double y_n[], double h_n[], int x_tam, int h_tam){
-  int i,j;
+void convolucion(double x_n[],double y_n[], double h_n[], int x_tam, int h_tam){                            //Aplicar convolución para el filtro
+  int i;                                                                                                    //Definir variable para el ciclo for
+  int j;                                                                                                    //Definir variable para el ciclo for
 
-  for(i=0;i<(x_tam+h_tam);i++){      
-    y_n[i]=0;                              
+  for(i=0;i<(x_tam+h_tam);i++){                                                                             //Definir la salida del filtro 
+    y_n[i]=0;                                                                                                                           
   }
-  for(i=0;i<x_tam;i++){              
+  for(i=0;i<x_tam;i++){                                                                                     //Definir los datos en los que se va a aplicar convolución         
     for(j=0;j<h_tam;j++){                 
-      y_n[i+j]+=x_n[i]*h_n[j];   
+      y_n[i+j]+=x_n[i]*h_n[j];                                                                              //Realizar la operación de convolución  
     }
   }
 }
 
 //Algoritmo para suavizar (mediana)
-void mediana (double sig_in[], double mediana_sen[], int sig_tam){
-  int i,j,k;
-  float vector[5], sig_Temp;
-  for(k=0;k<sig_tam;k++){   
-    vector[0]=sig_in[k+0];  
-    vector[1]=sig_in[k+1];  
-    vector[2]=sig_in[k+2];  
-    vector[3]=sig_in[k+3]; 
-    vector[4]=sig_in[k+4];  
+void mediana (double sig_in[], double mediana_sen[], int sig_tam){                                        //Crear un méotodo con varios parámetros de entrada
+  int i;                                                                                                  //Definir vaiables locales
+  int j;                                                                                                  //Definir vaiables locales
+  int k;                                                                                                  //Definir vaiables locales
+  float vector[5], sig_Temp;                                                                              
+  for(k=0;k<sig_tam;k++){                                                                                 //Recorrer la muestra de la señal                
+    vector[0]=sig_in[k+0];                                                                                //Cambio de la señal a la posición del vector 0
+    vector[1]=sig_in[k+1];                                                                                //Cambio de la señal a la posición del vector 1
+    vector[2]=sig_in[k+2];                                                                                //Cambio de la señal a la posición del vector 2
+    vector[3]=sig_in[k+3];                                                                                //Cambio de la señal a la posición del vector 3
+    vector[4]=sig_in[k+4];                                                                                //Cambio de la señal a la posición del vector 4
     for(i=0;i<(4);i++){     
       for(j=i+1;j<5;j++){
         if(vector[j]<vector[i]){
-          //Intercambio de valores
-          sig_Temp=vector[j];   
+          sig_Temp=vector[j];                                                                              //Cambiar valores de vector                     
           vector[j]=vector[i];
           vector[i]=sig_Temp;  
         }
       }
     }
-    mediana_sen[k]=vector[1];
+    mediana_sen[k]=vector[1];                                                                               //Valor final de la mediana de la señal
   }
 }
 
-//Métrica señal a ruido
-void SNR(){                                  
-  //Media de la señal de pulsos
+//Calcular la relacion señal a ruido
+void SNR(){                            
   float suma=0;
   for(int i=0;i<tam_sig;i++){                             
       suma += Sensor[i];                             
   }
   float promedio=suma/tam_sig;                        
-  float v1=map(promedio,0,1023,0,5);
-  Serial.println(String("Voltaje: ")+String(v1)); 
+  float v1=map(promedio,0,1023,0,5);                                            //Obtener primer voltaje realizando equivalencias con map
+  Serial.println(String("Voltaje: ")+String(v1));                               //Imprimir en el visor serial
 
   //Media de la señal filtrada por mediana
-  float suma2=0;
+  float resultado=0;                                                            //Definir variable de suma
   for(int i=0;i<tam_sig;i++){
-    suma2 += mediana_sen[i];
+    resultado += mediana_sen[i];
   }
-  float promedio2=suma2/tam_sig;                                        
-  float v2=map(promedio2,0,1023,0,5);
-    
-  Serial.println(String("Voltaje Filtrado: ")+String(v2)); 
-
-//Métrica señal a ruido en voltajes
-
-    double metricaSNR=20*log(v2/v1);                                        
-    Serial.println(String("SNR (dB): ")+String(metricaSNR));
-    //Serial.print("");
-    
+  
+    float prom=resultado/tam_sig;                                               //Obtener un promedio de la señal                                      
+    float v2=map(prom,0,1023,0,5);                                              //Obtener segundo voltaje realizando equivalencias con map
+    Serial.println(String("Voltaje Filtrado: ")+String(v2));                    //Imprimir en el visor serial
+    double valorSNR=20*log(v2/v1);                                              //Calcular relación señal a ruido en db                                       
+    Serial.println(String("SNR (dB): ")+String(valorSNR));                      //Imprimir en el visor serial  
 }
 
 //Graficar
-void graficacion(){ 
-  int i;
-  for(i=0;i<tam_sig;i++){
-    Serial.print(String("Señar recibida: ")+String(Sensor[i]));
-    Serial.print(",");
-    Serial.print(String("Friltro : ")+String(mediana_sen[i]));
-    Serial.print(",");
-    Serial.println(String("Suavizado con mediana: ")+String(salida[i]));
-    delay(20);
+void representar(){ 
+  int i;                                                                        //Declarar una nueva variable para las impresiones
+  for(i=0;i<tam_sig;i++){                                                       //Imprimir valores en comunicacion serial
+    Serial.print(String("Señar recibida: ")+String(Sensor[i]));                 //Imprimir en el visor serial
+    Serial.print(",");                                                          //Imprimir en el visor serial
+    Serial.print(String("Friltro : ")+String(mediana_sen[i]));                  //Imprimir en el visor serial
+    Serial.print(",");                                                          //Imprimir en el visor serial
+    Serial.println(String("Suavizado con mediana: ")+String(salida[i]));        //Imprimir en el visor serial
+    delay(20);                                                                  //Detener el microcontrolador 20 ms
   }
 }
