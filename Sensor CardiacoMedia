@@ -4,91 +4,93 @@
  *  EQUIPO N° 4
  *  Integrantes: Achina Diego, Grijalva Ana, Tobar Anahí
 */
+ #define tam_sig 120                          //Definir tamaño de los vectores que se importan
+ #define tam_fil 15                           //Definir tamaño de los vectores que se importan
 
-#define tam_sig 120 
- #define tam_fil 15 
-
- extern double Sensor[tam_sig];  
- extern double fir[tam_fil]; 
- double salida[tam_sig+tam_fil]; 
- double salida_sen[tam_sig];
+ extern double sensor[tam_sig];               //Importar el vector de la pestaña  
+ extern double fir[tam_fil];                  //Definir tamaño de los vectores que se importan 
+ double salida[tam_sig+tam_fil];              //Definir un vector para la salida 
+ double salida_sen[tam_sig];                  //Definir un vector para aplicar el algortimo  
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(9600);                         //Inicializar comunicación serial
 }
 
 void loop() {
- convolucion((double *)&Sensor, (double *)&salida[0], (double *)&fir[0], (int) tam_sig, (int) tam_fil); 
- filtro_media((double *)&Sensor, (double *)&salida_sen[0], (int) tam_sig,5); 
- graficacion();  
- SNRmetrica();   
- delay(100);
+ convolucion((double *)&sensor, (double *)&salida[0], (double *)&fir[0], (int) tam_sig, (int) tam_fil);   // Función para convolución 
+ filtro_media((double *)&sensor, (double *)&salida_sen[0], (int) tam_sig,5);                              // Calcular media
+ representar();                                                                                           // Llamar método para representar
+ calculoSNR();                                                                                            // Llamar método para calcular relacción señal a ruido 
+ delay(150);                                                                                              // Detener el microcontrolador 150 ms 
 }
 
-
-void convolucion (double x_n[],double y_n[], double h_n[], int x_tam, int h_tam){ 
-  int i,j; // declaramos variables para hacer dos ciclos
-  for(i=0; i<(x_tam+h_tam); i++){
+//Aplicacion del filtro fir
+void convolucion (double x_n[],double y_n[], double h_n[], int x_tam, int h_tam){                         //Aplicar convolución para el filtro
+  int i;                                                                                                  //Definir variable para el ciclo for
+  int j;                                                                                                  //Definir variable para el ciclo for  
+                           
+  for(i=0; i<(x_tam+h_tam); i++){                                                                         //Definir la salida del filtro
     y_n[i]=0;                              
     }
-  for(i=0; i<x_tam; i++){
+  for(i=0; i<x_tam; i++){                                                                                 //Definir los datos en los que se va a aplicar convolución    
     for(j=0; j<h_tam; j++){
-      y_n[i+j] += x_n[i]*h_n[j]; 
+      y_n[i+j] += x_n[i]*h_n[j];                                                                          //Realizar la operación de convolución
     }
   }
 }
 
-void filtro_media(double sig_in[], double salida_sen[], int sig_tam, int filtro){
-  int i,j; 
+void filtro_media(double sig_in[], double salida_sen[], int sig_tam, int filtro){                        //Método de suavizado de la señal
+  int i;                                                                                                 //Definir variable para el ciclo for
+  int j;                                                                                                 //Definir variable para el ciclo for
+  
   i=floor(filtro/2);  
-  while(i<sig_tam-floor(filtro/2)-1){ 
+  while(i<sig_tam-floor(filtro/2)-1){                                                                    //Obetener el máximo para la mitad del valor del filtro
     i++;
-    salida_sen[i]=0;
+    salida_sen[i]=0;                                                                                     //Inicializar el vector en 0
     j=-floor(filtro/2);
     while(j<floor(filtro/2)){
       j++;
-      salida_sen[i]=salida_sen[i]+sig_in[i+j];
+      salida_sen[i]=salida_sen[i]+sig_in[i+j];                                                           //Suma de señales para anular imperfecciones
       }
       salida_sen[i]=salida_sen[i]/((filtro*2)+1);
     }
   }
 
 
-void SNRmetrica(){
-  int i;
-
+void calculoSNR(){                                                    //Obtención de los valores señal a ruido
+  int i;                                                              //Declara variable para el ciclo for
   float suma=0;
   for(i=0;i<tam_sig;i++){ 
-    suma += Sensor[i]; 
+    suma += sensor[i];                                                //añadir valores al vector 
   }
   float promedio=suma/tam_sig;
-  float v1=map(promedio,0,1023,0,5);
-  Serial.println(String("Tension de señal: ")+String(v1)); 
+  float v1=map(promedio,0,1023,0,5);                                  //Obtener primer voltaje realizando equivalencias con map
+  Serial.println(String("Tension de señal: ")+String(v1));            //Imprimir en el visor serial
   
 
-  float suma2=0;
+  float resultado=0;
   for(i=0;i<tam_sig;i++){  
-    suma2 += salida[i];    
+    resultado += salida[i];    
   }
-  float promedio2=suma2/tam_sig;                          
-  float v2=map(promedio2,0,1023,0,5);
-  Serial.println(String("Tension de señal filtrada: ")+String(v2)); 
+  float prom=resultado/tam_sig;                                       //Obtener un promedio de la señal                        
+  float v2=map(prom,0,1023,0,5);                                      //Obtener segundo voltaje realizando equivalencias con map
+  Serial.println(String("Tension de señal filtrada: ")+String(v2));   //Imprimir en el visor serial 
 
 
-  double metricaSNR = 20*log(v2/v1);              
-  Serial.println(String("SNR (dB): ")+String(metricaSNR));
+  double valorSNR = 20*log(v2/v1);                                    //Calcular relación señal a ruido en db               
+  Serial.println(String("SNR (dB): ")+String(valorSNR));              //Imprimir en el visor serial  
   }
 
 
 //Grafica de la señal 
-void graficacion(){   
+void representar(){   
   int i;
-  for(i=0; i<tam_sig; i++){
-    Serial.print(Sensor[i]);
-    Serial.print(",");
-    Serial.print(salida_sen[i]);
-    Serial.print(",");
-    Serial.println(salida[i]);
-    delay(5);
+  for(i=0; i<tam_sig; i++){                                          //Declarar una nueva variable para las impresiones
+    Serial.print(sensor[i]);                                         //Imprimir valores en comunicacion serial                   
+    Serial.print(",");                                               //Imprimir en el visor serial
+    Serial.print(salida_sen[i]);                                     //Imprimir en el visor serial
+    Serial.print(",");                                               //Imprimir en el visor serial
+    Serial.println(salida[i]);                                       //Imprimir en el visor serial
+    delay(20);                                                       //Detener el microcontrolador 20 ms
     }
   }  
